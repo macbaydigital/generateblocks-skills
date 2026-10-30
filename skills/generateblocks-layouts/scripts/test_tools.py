@@ -99,6 +99,41 @@ class SerializerTests(unittest.TestCase):
             '@media (max-width:767px){.gb-element-card-42-1:hover{color:inherit}}',
         )
 
+    def test_matches_native_2_5_compiler_fixture(self):
+        fixture = json.loads((Path(__file__).parent / 'fixtures' / 'native_css_2_5_0.json').read_text(encoding='utf-8'))
+        for case in fixture['cases']:
+            with self.subTest(case=case['name']):
+                self.assertEqual(build_css(case['selector'], case['styles']), case['css'])
+
+    def test_native_2_5_ordering_rules(self):
+        css = build_css('.gb-element-x', {
+            '@media (max-width:767px)': {'gap': '1rem'},
+            '@supports (display:grid)': {'display': 'grid'},
+            '@media (min-width:1025px)': {'gap': '3rem'},
+            '&:hover': {'color': 'red'},
+            '&:focus-visible': {'color': 'navy'},
+            '--brandAccent': '#c00',
+            'color': 'var(--brandAccent)',
+        })
+        self.assertEqual(
+            css,
+            '.gb-element-x{--brandAccent:#c00;color:var(--brandAccent)}'
+            '.gb-element-x:focus-visible{color:navy}.gb-element-x:hover{color:red}'
+            '@supports (display:grid){.gb-element-x{display:grid}}'
+            '@media (min-width:1025px){.gb-element-x{gap:3rem}}'
+            '@media (max-width:767px){.gb-element-x{gap:1rem}}',
+        )
+
+    def test_pro_condition_attributes_keep_native_order_and_string_type(self):
+        attrs = ordered('element', {'className': 'gb-element', 'gbBlockConditionInvert': True, 'gbBlockCondition': 1186935,
+                                    'css': '', 'uniqueId': 'x-1234-1', 'tagName': 'div'})
+        self.assertEqual(list(attrs), ['uniqueId', 'tagName', 'css', 'gbBlockCondition', 'gbBlockConditionInvert', 'className'])
+        self.assertEqual(attrs['gbBlockCondition'], '1186935')
+
+    def test_bare_selector_keys_are_descendants(self):
+        css = build_css('.gb-text-x', {':hover': {'color': 'red'}, '.gb-shape svg': {'width': '1em'}})
+        self.assertEqual(css, '.gb-text-x .gb-shape svg{width:1em}.gb-text-x :hover{color:red}')
+
     def test_rejects_unsupported_depth_and_at_rule(self):
         with self.assertRaises(ValueError):
             normalize_at_rule('@keyframes pulse')
@@ -139,6 +174,14 @@ class PreflightTests(unittest.TestCase):
                 capture_output=True,
                 check=False,
             )
+
+    def test_pro_condition_reference_must_be_string(self):
+        good = self.block_markup().replace('"className":"gb-element"', '"gbBlockCondition":"77","className":"gb-element"', 1)
+        self.assertEqual(self.run_preflight(good).returncode, 0, self.run_preflight(good).stdout)
+        bad = good.replace('"gbBlockCondition":"77"', '"gbBlockCondition":77')
+        result = self.run_preflight(bad)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('gbBlockCondition stored as a string', result.stdout)
 
     def test_valid_css_mode_markup_passes(self):
         result = self.run_preflight(self.block_markup())

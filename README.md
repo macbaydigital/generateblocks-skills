@@ -6,7 +6,7 @@ LLM-optimized skill documentation and development resources for the [GenerateBlo
 
 **Documentation:** [Wiki](https://github.com/wpgaurav/generateblocks-skills/wiki) · [Getting started](https://github.com/wpgaurav/generateblocks-skills/wiki/Getting-Started) · [Installation](https://github.com/wpgaurav/generateblocks-skills/wiki/Installation) · [Latest release](https://github.com/wpgaurav/generateblocks-skills/releases/latest)
 
-**Beta workflow tested with GenerateBlocks 2.5.0-beta.1 and Pro 2.8.0-beta.1** on two local WordPress 7.1.1 / PHP 8.4 sites (September 18, 2026). Includes Design Tokens, Style Book guidance, shared selectors, portable design systems, and a working two-brand product-page kit. Older 2.4.1 / 2.7.1 guidance remains versioned; the old local Pro reference folder actually reports 2.7.0-rc.1. See the [beta guide](skills/generateblocks-layouts/references/design-systems-beta.md) for the test boundary.
+**Verified on GenerateBlocks 2.5.0 and Pro 2.8.0** in a live WordPress 7.1.3 editor (October 27, 2026), connected through [Site Agent](skills/generateblocks-layouts/references/mcp-publishing.md#11-site-agent-workflow-tested). The bundled `build_css()` compiler now matches the native 2.5 Styles Builder byte for byte: 1,453 generated style objects checked, including 800 from a seed it was never tuned on. The design-system workflow (Design Tokens, Style Book, shared selectors, portable kits) was first tested on 2.5.0-beta.1 / 2.8.0-beta.1.
 
 **Styling defaults:** local block styles. The skills prompt before introducing
 shared Global Styles or Design Tokens and add them only when the user explicitly
@@ -32,7 +32,7 @@ Start with the selected skill, the shared [authoring contract](skills/generatebl
 - **GB Pro blocks** — accordion, tabs, carousel, navigation, site header, overlays/mega menus, the 2.6 Forms system
 - **Full-site templates** — GeneratePress Elements (loop templates, page heroes, hooks, display rules), FSE block themes
 
-## Reusable beta kit
+## Reusable design-system kit
 
 [Paper and Ink product-page kit](skills/generateblocks-layouts/examples/beta-design-system/README.md): 19 tokens, 23 shared styles, six reusable sections, native query/accordion/form blocks, and two brand presets. Both 65-block pages survived real editor reload/save with byte-identical content. Imports, collision preservation, CSS parser/compiler parity, responsive layout, and local form behavior were checked.
 
@@ -153,8 +153,8 @@ generateblocks-skills/
 │   └── figma-to-generateblocks/
 ├── importable/                # .skill and .zip files for upload
 ├── examples/                  # Historical exploration/exports; not current copy-paste fixtures
-├── generateblocks/            # Plugin source (2.4.1) for reference
-└── generateblocks-pro/        # Pro plugin source (local 2.7.0-rc.1 header; git-ignored) for reference
+├── generateblocks/            # Plugin source (2.5.0) for reference
+└── generateblocks-pro/        # Pro plugin source (2.8.0; git-ignored) for reference
 ```
 
 ### Skills
@@ -220,7 +220,7 @@ generateblocks/query      → Dynamic lists (+ looper, loop-item, query-no-resul
 - **Links**: element `<a>` wrapping a text `span` child. Text `<a>` strips its href on save; element `<a>` with raw text triggers recovery
 - JSON attribute order follows each block's `block.json` declaration order, `className` last
 - `styles` is the editable source; compile the same states/selectors/at-rules into local `css`
-- Native Mobile is `@media (max-width:767px)` in 2.4.1; preserve deliberate custom queries
+- Native Mobile is `@media (max-width:767px)` in 2.4.1 and 2.5.0; preserve deliberate custom queries
 - Pro CSS Mode has no `cssMode` markup attribute
 
 Block format (Option A — the plugin auto-injects the id-class):
@@ -357,8 +357,26 @@ against what was stored, so anything in the path that runs `parse_blocks()`,
 **The one requirement for any server: it must read and write raw
 `post_content` as an opaque string.**
 
+**Start with [Site Agent](https://gauravtiwari.org/product/site-agent/?utm_source=github&utm_medium=readme&utm_campaign=generateblocks-skills).**
+It's my free WordPress MCP plugin, and it's the route these skills were
+verified through on GenerateBlocks 2.5.0 and Pro 2.8.0. Two reasons it fits
+GenerateBlocks better than a generic server:
+
+- **It ships this skill.** Site Agent bundles the GenerateBlocks references, so
+  the agent calls `get-skill` and reads the authoring rules from your own site
+  before it writes a single block.
+- **It writes raw markup and checks it.** `get-content` returns the exact
+  `post_content`, and `save-content` refuses the write unless the content hash
+  still matches your last read. Edits to a published page land as an autosave
+  you review in the editor, not on the live page.
+
+It signs your client in through WordPress with OAuth (Claude, ChatGPT, Claude
+Code, Codex, Cursor, VS Code, Gemini, Zed), and PHP execution, WP-CLI and file
+writes stay off until you switch them on.
+
 | Route | What it is | Licence / cost | Write happens |
 |-------|------------|----------------|---------------|
+| [**Site Agent**](https://gauravtiwari.org/product/site-agent/?utm_source=github&utm_medium=readme&utm_campaign=generateblocks-skills) (recommended) | Free plugin by the author of these skills. Streamable HTTP MCP at `/wp-json/site-agent/v1/mcp`, OAuth sign-in, raw `get-content`/`save-content` with a hash guard, bundled GenerateBlocks skill, staged edits on live posts, opt-in developer tools. WP 6.9+, PHP 8.0+. | GPL-2.0-or-later, free | Your server |
 | [**WordPress MCP Adapter**](https://github.com/WordPress/mcp-adapter) | Official bridge from the Abilities API to MCP. Successor to the archived `Automattic/wordpress-mcp`. | GPL-2.0-or-later, free | Your server |
 | [**Novamira**](https://github.com/use-novamira/novamira) | Self-hosted plugin + MCP server: PHP execution, WP-CLI, filesystem, block editor workflows. Direct client-to-site connection. | AGPL-3.0-or-later, free; paid Pro tier | Your server |
 | [**WPVibe**](https://wordpress.org/plugins/vibe-ai/) (SeedProd) | Free plugin plus a hosted MCP service. One-click auth from wp-admin, builder skills, approval gates. | Plugin free; hosted service has a free daily allowance | Cloud service brokers the call |
@@ -387,9 +405,32 @@ my staging site.
 
 Staging first, always. Novamira's PHP-execution surface in particular is
 scoped by its own docs to dev and staging — an agent with arbitrary PHP does
-not belong on a production site.
+not belong on a production site. The same goes for Site Agent's PHP and file
+tools, which is why they ship switched off.
 
 ---
+
+## Tools that pair well with these skills
+
+The skills are free and work without any of this. These are products I build,
+and each one fills a gap the skills leave on purpose.
+
+| You want to | Use | Why it fits |
+|-------------|-----|-------------|
+| Let the agent write to the site, not just the chat | [**Site Agent**](https://gauravtiwari.org/product/site-agent/?utm_source=github&utm_medium=readme&utm_campaign=generateblocks-skills) (free) | Bundles this skill, writes raw block markup with a hash guard, stages edits to live pages. See [Automate it](#automate-it-mcp-server-or-rest). |
+| Give every layout the same look | [**Design Systems Library**](https://gauravtiwari.org/product/design-systems-library/?utm_source=github&utm_medium=readme&utm_campaign=generateblocks-skills) | Agent-ready design systems: tokens, a `DESIGN.md` rulebook, components, fonts and live demos. When you opt into Global Styles or Design Tokens, the agent takes the values from one system instead of inventing a palette per section. |
+| Sell subscriptions or licenses from a WooCommerce store | [**Stackless for WooCommerce**](https://gauravtiwari.org/product/stackless-for-woocommerce/?utm_source=github&utm_medium=readme&utm_campaign=generateblocks-skills) ([free Lite](https://gauravtiwari.org/product/stackless-lite-for-woocommerce/?utm_source=github&utm_medium=readme&utm_campaign=generateblocks-skills)) | Subscriptions, Stripe, PayPal, Paddle, licensing, multi-currency and invoices in one plugin on core WooCommerce. Switched-off modules load no code. |
+| Sell digital downloads with Easy Digital Downloads | [**Stackless for EDD**](https://gauravtiwari.org/product/stackless-for-edd/?utm_source=github&utm_medium=readme&utm_campaign=generateblocks-skills) ([free Lite](https://gauravtiwari.org/product/stackless-lite-for-edd/?utm_source=github&utm_medium=readme&utm_campaign=generateblocks-skills)) | The same idea for EDD: subscriptions, licensing, gateways, multi-currency and invoices without the add-on stack. |
+| Keep the finished pages fast | [**GT Performance**](https://gauravtiwari.org/product/gt-performance/?utm_source=github&utm_medium=readme&utm_campaign=generateblocks-skills) (free) | Page cache, Cloudflare Free integration, unused CSS removal and Redis, with safeguards for cart and checkout pages. |
+| Drop in a hand-coded section GenerateBlocks shouldn't own | [**Page Blocks Builder**](https://gauravtiwari.org/product/gt-page-blocks-builder/?utm_source=github&utm_medium=readme&utm_campaign=generateblocks-skills) (free) | Sections in your own HTML, CSS and JavaScript. These skills keep GenerateBlocks native by default; this is the clean place for the custom-code exceptions, and Site Agent can draft them too. |
+| Get more skills like this one | [**AI Skills Library**](https://gauravtiwari.org/product/ai-skills-library/?utm_source=github&utm_medium=readme&utm_campaign=generateblocks-skills) or [**All-Access Pass**](https://gauravtiwari.org/product/all-access/?utm_source=github&utm_medium=readme&utm_campaign=generateblocks-skills) | Writing and visual skills for Claude Code, Codex and Cursor. All-Access adds the Design Systems Library and Notion templates in one yearly pass. |
+
+### More open-source skills
+
+- [Bricks Builder skill](https://github.com/wpgaurav/bricks-skills): paste-ready Bricks JSON, verified against the Bricks source
+- [Kadence skills](https://github.com/wpgaurav/kadence-skills): Kadence Blocks markup for Gutenberg templates
+- [WordPress skills](https://github.com/wpgaurav/WordPress-skills): 125+ skills for WordPress, design, SEO and marketing
+- [Claude Code skills](https://github.com/wpgaurav/claude-code-skills): stop-slop, red-pen, polish and other anti-slop skills
 
 ## Other LLMs
 
